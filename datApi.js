@@ -4,12 +4,12 @@ var key = link.replace("dat://", ""); // extract the key
 var path = require("path");
 var fs = require("fs");
 var dir = path.join(process.cwd(), "dat-to-sync"); // make a download folder
-
 var sourceFile = "/test.json";
 Dat(
   dir,
   {
-    key: key // (a 64 character hash from proccess above)
+    key: key, // (a 64 character hash from proccess above)
+    sparse: true
   },
   function(err, dat) {
     if (err) throw err;
@@ -18,20 +18,33 @@ Dat(
     dat.joinNetwork();
 
     // Can read archive and write it to a file below. Can sync with remote update on stats events.
-    dat.trackStats()
-    dat.stats.on('update', function() {
-    dat.archive.readFile(sourceFile, function(err, content) {
-      const parseContent = JSON.parse(content);
-      console.log(parseContent); // prints remote passwords file!
+    dat.trackStats();
+    dat.stats.on("update", () => {
+      dat.archive.readFile(sourceFile, (err, content) => {
+        fs.readFile("./" + sourceFile, (err, localContent) => {
+          const parseContent = JSON.parse(content);
+          const parseLocalContent = JSON.parse(localContent);
+          const isSame =
+            JSON.stringify(parseLocalContent) === JSON.stringify(parseContent);
+          console.log(
+            parseContent,
+            parseLocalContent,
+            isSame ? "same" : "different"
+          ); // prints remote passwords file!
 
-      // Write
-      fs.writeFile("test-local.json", JSON.stringify(parseContent), function(
-        err
-      ) {
-        if (err) throw err;
-        console.log("It's saved!");
+          // Write
+          if (!isSame) {
+            fs.writeFile(
+              "./" + sourceFile,
+              JSON.stringify(parseContent),
+              function(err) {
+                if (err) throw err;
+                console.log("It's saved!");
+              }
+            );
+          }
+        });
       });
     });
-  })
   }
 );
